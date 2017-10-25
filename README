@@ -1,5 +1,5 @@
 The script is an unoptimized version of Earley parser, where columns are presented as a list of lists of slots (where each rule, its weight, and its start position are stored). 
 
-To run the script, use the command: "python3 [Grammar] [Sentences]"
+To run the script, use the command: "python3 20171025 [Grammar] [Sentences]"
 
 More detailed illustrations of functions and data structures are commented in the script.
