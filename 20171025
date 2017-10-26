@@ -25,17 +25,31 @@ def print_tree(columns, slot):
     if len(slot) == 3:
         output = '(' + ' '.join(slot[0]) + ')'
     else:
+        idx = 3
+        output +='('
+        while idx < len(slot):
+            child = []
+            if columns[slot[idx][0]][0] == slot[idx][1] and columns[slot[idx][0]][2] == slot[idx][3]:
+                child = columns[slot[idx][0]]
+                break
+            output += ' '.join(slot[0]) + print_tree(columns, child)
+            idx += 1
+
+        output += ')'
+        
+        '''
         left_child = []
         right_child = []
-        for s in columns[slot[3][0]]:
-            if s[0] == slot[3][1] and s[2] == slot[3][3]:
+        for s in columns[slot[-2][0]]:
+            if s[0] == slot[-2][1] and s[2] == slot[-2][3]:
                 left_child = s
                 break
-        for s in columns[slot[4][0]]:
-            if s[0] == slot[4][1] and s[2] == slot[4][3]:
+        for s in columns[slot[-1][0]]:
+            if s[0] == slot[-1][1] and s[2] == slot[-1][3]:
                 right_child = s
                 break
         output += "(" + ' '.join(slot[0]) + print_tree(columns, left_child) + print_tree(columns, right_child) + ")"
+        '''
 
     return output
 
@@ -129,9 +143,9 @@ for sentence in sentences.readlines():
                             # attached.append([columns[col][idx][2], slot[0],slot[2]])
                             # attached.append([col, columns[col][idx][0], columns[col][idx][2]])
                            #/xc
-                            if len(attached) > 3:
-                                attached = attached[:-2]
-                            attached.append([columns[col][idx][2], slot[0], slot[1], slot[2]])
+                            # if len(attached) > 3:
+                            #     attached = attached[:-2]
+                            # attached.append([columns[col][idx][2], slot[0], slot[1], slot[2]])
                             attached.append([col, columns[col][idx][0], slot[1], columns[col][idx][2]])
 
                             interned = sys.intern(' '.join(attached[0]))
@@ -196,9 +210,11 @@ for sentence in sentences.readlines():
 if __name__ == "__main__":
     
     result = ''
-    print("Last column:")
+    # print("Last column:")
+    # for row in columns[-1]:
+    #     print(row)
     for row in columns[-1]:
         if row[0][0] == 'ROOT':
             result = print_tree(columns, row)
             print(result)
-            print()
+          
