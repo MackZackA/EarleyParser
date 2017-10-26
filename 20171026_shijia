@@ -1,0 +1,277 @@
+#!/usr/bin/env python3
+
+import copy
+import sys
+import math
+
+def prob_to_weight(prob):
+    prob = float(prob)
+    return -1 * math.log2(prob)
+
+def print_tree(columns, slot, output, isComplete):
+    if isComplete and len(slot) > 4:
+        output.append("(" + grammar_table[slot[0]][0])
+
+    if len(slot) > 4:
+        left_child = []
+        right_child = []
+        for s in columns[slot[4][0]]:
+            if s is None:
+                continue
+            if s[0] == slot[4][1] and s[2] == slot[4][3] and s[3] == slot[4][4]:
+                left_child = s
+                break
+        if slot[5][2] < 0:
+            right_child = slot[5][1:]
+        else:
+            for s in columns[slot[5][0]]:
+                if s is None:
+                    continue
+                if s[0] == slot[5][1] and s[2] == slot[5][3] and s[3] == slot[5][4]:
+                    right_child = s
+                    break
+        if len(left_child) != 0:
+            print_tree(columns, left_child, output, False)
+        if len(right_child) != 0:
+            print_tree(columns, right_child, output, True)    
+
+    if isComplete:
+        if len(slot) == 4:
+            output.append(slot[0])
+        else:
+            output.append(")")
+
+
+def process_grammar(grammar, initial_values, grammar_table, non_terminals, initial_rules, all_rules):
+    for line in grammar.readlines():
+        # print('line before splitting: ', line)
+        line = line.strip().split()
+        # line = line.strip().split('\t')
+        # print('line after splitting: ', line)
+        weight = prob_to_weight(line[0])
+        rule = line[1:]
+        if rule[0] not in non_terminals:
+            interned_nonterminal = sys.intern(rule[0])
+            non_terminals.append(rule[0])
+            # tp = (rule[0], rule)
+            # nonterminal_rules.append(tp)
+        if rule[0] == 'ROOT':
+            initial_rules.append(rule)
+        interned_rule = sys.intern(' '.join(rule))
+        if interned_rule not in grammar_table:
+            # rules are converted from list to string (sep by space) to be interned in dict
+            # remember to compare or retrive rules from hash table, do convert the keys back to list
+            grammar_table[interned_rule] = rule
+            initial_values[interned_rule] = weight
+        tp = (rule[0], rule)
+        all_rules.append(tp)
+
+
+def parse_sentence(sentence, initial_values, grammar_table, non_terminals, initial_rules, all_rules):
+
+    # Initializtion
+    initial_rows = []
+    for initial_rule in initial_rules:
+        initial_weight = initial_values[' '.join(initial_rule)]
+        backpointer = 0
+        initial_dot_pos = 0
+        interned_initial_rule = sys.intern(' '.join(initial_rule))
+        initial_rows.append([interned_initial_rule, initial_weight, backpointer, initial_dot_pos])
+
+    sentence = sentence.split()
+    
+    columns = [] # columns of parse table
+    for i in range(0, len(sentence) + 1):
+        columns.append([])
+
+    for initial_row in initial_rows:
+        columns[0].append(initial_row)
+
+    for col in range(0, len(sentence) + 1):
+        # remember to modulize attach, predict, and scan functions later
+        col_size = len(columns[col])
+        idx = 0
+
+        checked = [] # prevent lookaheads that have been checked from being checked again
+        duplicate = {} # hash table checking duplicates for each column. key: str(rule), value: idx
+        while idx < col_size:
+            # print("" + str(idx) + " loop " + str(col) + " col")
+            # attach
+            if columns[col][idx] is None:
+                idx += 1
+                continue
+            cur_rule = grammar_table[columns[col][idx][0]]
+            if len(cur_rule) == columns[col][idx][3] + 1:
+                # handling duplicate, esepcially at the last column
+                # for each column, set up a temporary hash table to store interned rule-idx pair, if the newly added item has a match, return its idx to access the duplicate item.
+                # Compare start position first, if yes then weights, if current weight is larger than the duplicate one, don't add it to the column 
+
+
+                # find the start position of the completed rule, go back to the column where the rule starts, append each of the related to current column
+
+                # print("At " + str(col)  + " col  idx = " + str(idx) + " attach")
+                count = 1 # indicate how many rules are attached using baclpointers
+                for slot in columns[columns[col][idx][2]]:
+                    # print("Pointing back to column " + str(columns[col][idx][2]))
+                    # if len(slot[0]) > 1:
+                    if slot is None:
+                        continue
+                    cur_slot_rule = grammar_table[slot[0]]
+                    if len(cur_slot_rule) - 1 > slot[3]: 
+                        if cur_slot_rule[slot[3] + 1] == grammar_table[columns[col][idx][0]][0]:
+                            attached = copy.deepcopy(slot)
+                            # del attached[0][1] # move the dot one position to the right
+                            attached[3] += 1
+                            attached[1] += columns[col][idx][1] # update the weight of the newly attached rule
+                            
+                           #xc
+                           # attached.append([slot[0],slot[2]])
+                           # attached.append([col, columns[col][idx][0],columns[col][idx][2]])
+                           #/xc
+                            if len(attached) > 4:
+                                attached = attached[:-2]
+                            attached.append([columns[col][idx][2], slot[0], slot[1], slot[2], slot[3]])
+                            attached.append([col, columns[col][idx][0], columns[col][idx][1], columns[col][idx][2], columns[col][idx][3]])
+
+                            
+                            interned = sys.intern(' '.join(grammar_table[attached[0]]) + " " + str(attached[2]) + " " + str(attached[3]))
+                            if interned not in duplicate:
+                                columns[col].append(attached) # attach
+                                duplicate[interned] = col_size
+                                #if col == 3 and attached[0] == 'S NP VP PUNC.' and attached[2] == 0 and attached[3] == 2:
+                                #    print(attached)
+                                #    print(interned)
+                                #    print(idx)
+                                col_size += 1
+                                
+                                # print("Attach " + str(count) + "th rule for this completed rule")
+                                count += 1
+                                # print("The attached slot is ")
+                                # print(' '.join(grammar_table[attached[0]]) + str(attached[2]))
+
+                            else: # detecting duplicate rule
+                                compared = columns[col][duplicate[interned]] # access the slot of the duplicate rule
+                                # if compared[2] == attached[2]: # they must have the same start position to be duplicates
+                                #if col == 3 and attached[0] == 'S NP VP PUNC.' and attached[2] == 0 and attached[3] == 2:
+                                #    print(attached)
+                                #    print(compared[1])
+                                if attached[1] < compared[1]:
+                                    columns[col][duplicate[interned]] = None #  kill the heavier one, and add the new one. Otherwise, don't append the new one.
+                                    columns[col].append(attached)
+                                    duplicate[interned] = col_size # update the index, since the old one is deleted
+                                    col_size += 1
+
+                                    #print("Attach " + str(count) + "th rule for this completed rule")
+                                    #print("The attached rule is ") 
+                                    #print(' '.join(grammar_table[attached[0]]))
+                                    count += 1
+            
+            else:
+                cur_dot_pos = columns[col][idx][3]
+                if grammar_table[columns[col][idx][0]][cur_dot_pos + 1] in non_terminals: # PREDICT if the look-ahead is a nonterminal
+                    if grammar_table[columns[col][idx][0]][cur_dot_pos + 1] not in checked: # no checked lookahead is processed again
+                        #print('At ' + str(col) + ' col idx = ' + str(idx) + ' predict')
+                        checked.append(grammar_table[columns[col][idx][0]][cur_dot_pos + 1])
+                        # print(checked)
+                        #print(grammar_table[columns[col][idx][0]])
+
+                        # error here. can't use nonterminal_rules since it doesn't print out all the rules required of the expansion
+                        for pair in all_rules:
+                            if pair[0] == grammar_table[columns[col][idx][0]][cur_dot_pos + 1]: # retreive the rule starting with the nonterminal
+                                row = [sys.intern(' '.join(pair[1])), initial_values[' '.join(pair[1])], col, 0]
+                                columns[col].append(row) # append the slot
+                                duplicate[sys.intern(' '.join(grammar_table[row[0]])) + " " + str(row[2]) + " " + str(row[3])] = idx
+                                col_size += 1
+                            # else:
+                            #     print("not predicting anything")
+                    # else:
+                        #print(str(grammar_table[columns[col][idx][0]][cur_dot_pos + 1]) + " will cause left-recursive rule. Don't add it")
+
+                else: # SCAN if the look-ahead is a word
+                    #print('At ' + str(col) + ' col idx = ' + str(idx) + ' scan')
+                    if col < len(sentence):
+                        if grammar_table[columns[col][idx][0]][cur_dot_pos + 1] == sentence[col]:
+                            temp = copy.deepcopy(columns[col][idx])
+                            # del temp[0][1]
+                            temp[3] += 1
+
+                            if len(temp) > 4:
+                                temp = temp[:-2]
+                            temp.append([col, columns[col][idx][0], columns[col][idx][1], columns[col][idx][2], columns[col][idx][3]])
+                            # print(temp[-1])
+                            temp.append([col, sys.intern(sentence[col]), -1.0, columns[col][idx][2], 0])
+
+                            columns[col + 1].append(temp) # append in next line after attaching the word
+                            # duplicate[sys.intern(' '.join(temp[0]))] = idx
+                        # else:
+                            #print("not matched")
+            idx += 1
+        # print("PRINT column: " + str(col))
+        # print(columns[col])
+    return columns
+
+if __name__ == "__main__":
+
+    '''
+    print("COL 0:")
+    for row in columns[0]:
+        print(row)
+    
+    print("COL 1:")
+    for row in columns[1]:
+        print(row)
+    
+    print("COL 2:")
+    for row in columns[2]:
+        print(row)
+    '''
+
+    '''
+    print("COL 3:")
+    for row in columns[3]:
+        print(row)
+    
+    print("COL 4:")
+    for row in columns[4]:
+        print(row)
+    
+    
+    print("COL 5:")
+    for row in columns[5]:
+        print(row)
+    print("COL 6:")
+    for row in columns[6]:
+        print(row)
+    
+    print()
+    '''
+    grammar = open(sys.argv[1])
+    sentences = open(sys.argv[2])
+
+    initial_values = {} # key: str(rule), value: weight
+    grammar_table = {}  # key: str(rule), value: rule(list of tokens)
+    # nonterminal_rules = [] # list of tuples, key: nonterminal, value; rule(list of tokens)   
+    all_rules = []         # list of tuples, key: nonterminal, value: rule(list of tokens)
+    initial_rules = []   # list of initial rule, for initialization of columns
+    non_terminals = []  # list of nonterminals
+
+    process_grammar(grammar, initial_values, grammar_table, non_terminals, initial_rules, all_rules)
+
+    for sentence in sentences.readlines():
+        if sentence == "\n":
+            continue
+        columns = parse_sentence(sentence, initial_values, grammar_table, non_terminals, initial_rules, all_rules)
+        # print("Last column:")
+        noParse = True
+        for row in columns[-1]:
+            if row is None:
+                continue
+            output = []
+            if grammar_table[row[0]][0] == 'ROOT' and row[3] == len(grammar_table[row[0]]) - 1:
+                noParse = False
+                print_tree(columns, row, output, True)
+                print(' '.join(output))
+                print(row[1])
+    
+        if noParse:
+            print("NONE")
