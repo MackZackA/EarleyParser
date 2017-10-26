@@ -19,14 +19,12 @@ all_rules = []         # list of tuples, key: nonterminal, value: rule(list of t
 initial_rule = []   # list of initial rule, for initialization of columns
 non_terminals = []  # list of nonterminals
 
-def print_tree(columns, slot, isComplete):
-    output = ''
-    if len(slot) == 4:
-        if isComplete:
-            output = '(' + ' '.join(grammar_table[slot[0]][1:]) + ')'
-        else:
-            output = '(' + grammar_table[slot[0]][slot[3] + 1]
-    else:
+def print_tree(columns, slot, output, isComplete):
+    if isComplete:
+        output.append("(" + grammar_table[slot[0]][0])
+        if len(slot) == 4:
+            output.append(grammar_table[slot[0]][1])
+    if len(slot) > 4:
         left_child = []
         right_child = []
         for s in columns[slot[4][0]]:
@@ -37,8 +35,13 @@ def print_tree(columns, slot, isComplete):
             if s[0] == slot[5][1] and s[2] == slot[5][3] and s[3] == slot[5][4]:
                 right_child = s
                 break
-        output += "(" + grammar_table[slot[0]][0] + print_tree(columns, left_child, False) + print_tree(columns, right_child, True) + "))"
-    return output
+        if len(left_child) != 0:
+            print_tree(columns, left_child, output, False)
+        if len(right_child) != 0:
+            print_tree(columns, right_child, output, True)    
+
+    if isComplete:
+        output.append(")")
 
 
 for line in grammar.readlines():
@@ -228,11 +231,12 @@ if __name__ == "__main__":
     print()
     '''
     result = ''
-    print("Last column:")
+    # print("Last column:")
+    output = []
     for row in columns[-1]:
-        print(row)
+        # print(row)
         if grammar_table[row[0]][0] == 'ROOT':
-            result = print_tree(columns, row, True)
-            print(result)
+            result = print_tree(columns, row, output, True)
+            print(' '.join(output))
             print()
     
